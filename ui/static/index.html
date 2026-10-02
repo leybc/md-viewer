@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- CSP：仅允许自身脚本与样式，禁止 Markdown 内容中注入的内联脚本执行（自用查看器的纵深防御） -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self' file: data:; script-src 'self' file:; style-src 'self' 'unsafe-inline' file:; img-src * file: data:">
+<title>MD 查看器</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="toolbar">
+  <button id="btn-open-folder" title="选择一个文件夹，列出其中所有 Markdown 文件">打开文件夹</button>
+  <button id="btn-open-file" title="打开单个 Markdown 文件">打开文件</button>
+  <button id="btn-refresh" title="重新扫描当前文件夹">刷新</button>
+  <span class="sep"></span>
+  <div id="mode-switch">
+    <button id="btn-mode-preview" class="mode active" title="渲染阅读模式">预览</button>
+    <button id="btn-mode-edit" class="mode" title="源码编辑模式">编辑</button>
+  </div>
+  <span class="sep"></span>
+  <button id="btn-save" disabled title="保存当前文件（Ctrl+S）">保存</button>
+  <button id="btn-export" disabled title="把当前文件导出为独立 HTML">导出 HTML</button>
+  <span id="current-file">未打开文件</span>
+</header>
+
+<div id="main">
+  <aside id="sidebar">
+    <div id="tree-header">
+      <span>文件树</span>
+      <span id="file-count"></span>
+    </div>
+    <nav id="file-tree"><div class="tree-empty">点击"打开文件夹"浏览 Markdown 文件</div></nav>
+  </aside>
+  <div id="content">
+    <div id="preview" class="markdown-body"></div>
+    <textarea id="editor" spellcheck="false" hidden></textarea>
+  </div>
+</div>
+
+<footer id="statusbar"><span id="status-text">正在启动…</span></footer>
+
+<script src="app.js"></script>
+</body>
+</html>
