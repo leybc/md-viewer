@@ -26,9 +26,25 @@ WINDOW_SIZE = (1200, 800)
 MIN_SIZE = (820, 560)
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-INDEX_HTML = PROJECT_ROOT / "ui" / "static" / "index.html"
-ICON_PATH = PROJECT_ROOT / "assets" / "icon.ico"
-LOG_DIR = PROJECT_ROOT / "logs"
+
+
+def _resource_root() -> Path:
+    """界面资源根目录：开发态为源码目录；PyInstaller 打包后为自解压目录。"""
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS)
+    return PROJECT_ROOT
+
+
+def _app_root() -> Path:
+    """应用根目录：开发态为源码目录；打包后为 exe 所在目录（日志放这里便于查找）。"""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return PROJECT_ROOT
+
+
+INDEX_HTML = _resource_root() / "ui" / "static" / "index.html"
+ICON_PATH = _resource_root() / "assets" / "icon.ico"
+LOG_DIR = _app_root() / "logs"
 
 logger = logging.getLogger(__name__)
 

@@ -24,15 +24,18 @@ pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 ## 使用方法
 
-### 启动
+### 启动（三选一）
 
-- 双击 `启动查看器.bat`（静默启动，无控制台窗口）；
-- 或命令行：`python main.py [文件.md 或 目录]`——启动即加载。
+- **双击 `dist\MD查看器.exe`**（推荐；单文件约 19MB，无需 Python 环境）；
+- 双击 `启动查看器.bat`（开发态源码运行，需要 Python 环境）；
+- 命令行：`python main.py [文件.md 或 目录]`——启动即加载。
+
+> 单文件 exe 每次启动会在系统临时目录（%TEMP%）自解压一次，程序退出**自动删除**；程序自身目录零残留。exe 的运行日志在 exe 旁边的 `logs\app.log`。
 
 ### 双击 .md 文件直达（文件关联，一次设置）
 
 1. 右键任意 `.md` 文件 → **属性** → **打开方式**右侧的**更改**；
-2. 选择"在这台电脑上查找其他应用"，浏览到本项目的 `启动查看器.bat`；
+2. 选择"在这台电脑上查找其他应用"，浏览到 `dist\MD查看器.exe`；
 3. 确定后，以后**双击任意 .md 文件**即直接用本程序打开查看。
 
 （也可以在"打开方式 → 选择其他应用"里完成同样的选择。）
@@ -81,6 +84,17 @@ python -m pytest tests\ -v          :: 功能测试（33 项）
 python tests\smoke_gui.py           :: GUI 冒烟（启动 + DOM/桥接自检 + 参数加载）
 ruff check . && black --check .     :: 静态检查
 ```
+
+## 构建 exe
+
+```bat
+pip install pyinstaller -i https://mirrors.aliyun.com/pypi/simple/
+pyinstaller --noconfirm --clean --onefile --windowed --icon "assets\icon.ico" --name "MD查看器" ^
+  --add-data "ui/static;ui/static" --add-data "assets/icon.ico;assets" ^
+  --collect-all webview --collect-all clr_loader --collect-all pythonnet main.py
+```
+
+产物：`dist\MD查看器.exe`（改动源码或图标后需重新构建）。
 
 ## 问题反馈
 

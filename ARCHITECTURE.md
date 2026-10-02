@@ -31,7 +31,7 @@
 | 10 | 质量工具链 | ruff check → black --check → py_compile → pytest | 知识库 quality.md |
 | 11 | 日志 | logging 标准库：控制台 + logs/app.log | 知识库默认；开发版必须有日志（第五章第 6 条） |
 | 12 | Git | 开启，每阶段验收后提交 | 用户确认 |
-| 13 | 打包 | 不打包，直接源码运行；启动便利用 `启动查看器.bat`（pythonw 静默） | 最小实现（铁律 9），用户自用 |
+| 13 | 打包 | **PyInstaller 6.22.2 单文件 exe（onefile + windowed + 图标）**：`dist/MD查看器.exe`（约 19MB），界面资源与运行时经 `--add-data` / `--collect-all webview clr_loader pythonnet` 打入；代码以 `sys.frozen/_MEIPASS` 适配双态路径 | **用户 2026-10-02 明确要求交付 exe**（推翻原"自用不打包"决策）；onefile 启动时向 %TEMP% 自解压、退出自动清理，已向用户如实说明 |
 | 14 | 零落盘 | `webview.start(private_mode=True)`（默认值已查证）；日志文件为本机开发日志，非程序数据 | 用户诉求"不释放临时文件" |
 | 15 | 程序图标 | `assets/icon.ico`（Markdown 风格 M↓ 图标），由 `tools/make_icon.py`（Pillow）生成，经 `webview.start(icon=...)` 挂载窗口 | 用户补充需求（2026-10-02） |
 | 16 | 文件关联启动 | 命令行参数接收 .md 路径（`main.py <文件>`），配合 `启动查看器.bat`（`%*` 透传）；用户在 .md"属性→打开方式"中选择该 bat 后双击直达 | 用户补充需求（2026-10-02）；冒烟已覆盖参数加载链路 |
