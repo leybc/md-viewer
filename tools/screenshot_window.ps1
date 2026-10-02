@@ -11,6 +11,7 @@ using System.Runtime.InteropServices;
 public class Win32Cap {
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+    [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
     public struct RECT { public int Left, Top, Right, Bottom; }
 }
 "@
@@ -21,18 +22,20 @@ $proc = Get-Process | Where-Object { $_.MainWindowTitle -like "*$Title*" } | Sel
 if (-not $proc) { Write-Output "NO_WINDOW"; exit 1 }
 
 $h = $proc.MainWindowHandle
-[Win32Cap]::SetForegroundWindow($h) | Out-Null
-Start-Sleep -Milliseconds 500
-
 $r = New-Object Win32Cap+RECT
 [Win32Cap]::GetWindowRect($h, [ref]$r) | Out-Null
 $w = $r.Right - $r.Left
 $ht = $r.Bottom - $r.Top
 if ($w -le 0 -or $ht -le 0) { Write-Output "BAD_RECT"; exit 1 }
 
+# PrintWindow 离屏捕获：直接渲染目标窗口自身，不受窗口遮挡/前台抢夺影响
+# flags=2 即 PW_RENDERFULLCONTENT（含 WebView2 等硬件合成内容）
 $bmp = New-Object System.Drawing.Bitmap $w, $ht
 $g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.CopyFromScreen($r.Left, $r.Top, 0, 0, (New-Object System.Drawing.Size($w, $ht)))
+$hdc = $g.GetHdc()
+[Win32Cap]::PrintWindow($h, $hdc, 2) | Out-Null
+$g.ReleaseHdc($hdc)
+$g.Dispose()
 $bmp.Save($OutFile, [System.Drawing.Imaging.ImageFormat]::Png)
-$g.Dispose(); $bmp.Dispose()
+$bmp.Dispose()
 Write-Output "SAVED $OutFile ($w x $ht)"

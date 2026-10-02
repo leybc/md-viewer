@@ -15,12 +15,24 @@ import os
 import socket
 import sys
 import threading
+import time
 from pathlib import Path
-
-import webview
+from typing import TYPE_CHECKING
 
 from core import file_service
-from ui.api import Api
+
+# webview 与 ui.api（连带 pythonnet/.NET CLR 初始化）是启动耗时大头，
+# 延迟到确认本进程是主实例后再导入：已开窗口时再双击 md 的转发路径可秒级退出
+if TYPE_CHECKING:
+    import webview
+
+_PROCESS_START = time.perf_counter()
+
+
+def _elapsed_ms() -> int:
+    """进程启动以来的毫秒数（启动耗时分段统计用）。"""
+    return int((time.perf_counter() - _PROCESS_START) * 1000)
+
 
 APP_TITLE = "MD 查看器"
 WINDOW_SIZE = (1200, 800)
@@ -95,6 +107,8 @@ def _on_files_dropped(event: dict) -> None:
     pywebviewFullPath 字段（须在 Python 侧订阅 drop 才生效）。
     缺少该字段的项说明路径通道未生效，静默忽略，不产生误导提示。
     """
+    import webview
+
     window = webview.windows[0]
     files = event.get("dataTransfer", {}).get("files", [])
     for item in files:
@@ -200,7 +214,10 @@ def _try_forward_to_running_instance(targets: list[str]) -> bool:
 
 def _on_window_loaded() -> None:
     """窗口加载完成后的订阅与冒烟处理。"""
+    import webview
+
     window = webview.windows[0]
+    logger.info("窗口加载完成（%d ms）", _elapsed_ms())
     # 订阅拖拽（Python 侧订阅后 WebView2 才会上报完整路径）
     window.dom.body.events.drop += _on_files_dropped
     # 单实例：监听后续实例转发来的打开请求
@@ -217,11 +234,17 @@ def _on_window_loaded() -> None:
 def main() -> None:
     """应用主入口。"""
     setup_logging()
-    logger.info("md-viewer 启动")
+    logger.info("md-viewer 启动（引导耗时 %d ms）", _elapsed_ms())
     targets = [item for item in sys.argv[1:] if item.strip()]
     if _try_forward_to_running_instance(targets):
-        logger.info("已转发给运行中的实例，本进程退出")
+        logger.info("已转发给运行中的实例，本进程退出（总耗时 %d ms）", _elapsed_ms())
         return
+    # 本进程为主实例：导入 GUI 依赖（pythonnet/.NET CLR 的初始化发生在这里）
+    import webview
+
+    from ui.api import Api
+
+    logger.info("GUI 依赖导入完成（%d ms）", _elapsed_ms())
     initial_path, initial_is_dir = resolve_initial_target(targets)
     api = Api(initial_path, initial_is_dir)
     window = webview.create_window(
