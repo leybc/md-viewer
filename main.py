@@ -12,6 +12,7 @@
 import json
 import logging
 import os
+import socket
 import sys
 import threading
 from pathlib import Path
@@ -24,6 +25,11 @@ from ui.api import Api
 APP_TITLE = "MD 查看器"
 WINDOW_SIZE = (1200, 800)
 MIN_SIZE = (820, 560)
+
+# 单实例 IPC：第一个实例监听本机回环端口，后续实例把目标路径转发后退出。
+# 只监听 127.0.0.1，仅供本机内部通信
+IPC_HOST = "127.0.0.1"
+IPC_PORT = 47513
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 
@@ -124,11 +130,81 @@ def _smoke_self_check(window: "webview.Window") -> None:
         os._exit(3)
 
 
+def _handle_ipc_payload(window: "webview.Window", payload: bytes) -> bytes:
+    """处理一条单实例 IPC 请求，返回应答（OK / ERR）。
+
+    载荷为 JSON：{"paths": [...]}。每个路径按类型分发给前端
+    （文件开标签、目录打开导航树）；空路径列表仅聚焦已有窗口。
+    """
+    try:
+        data = json.loads(payload.decode("utf-8"))
+        paths = [p for p in data.get("paths", []) if isinstance(p, str) and p.strip()]
+    except (UnicodeDecodeError, ValueError):
+        logger.warning("IPC 载荷解析失败")
+        return b"ERR"
+    for path in paths:
+        is_dir = Path(path).is_dir()
+        window.evaluate_js(
+            f"window.app && window.app.loadFromPath({json.dumps(path)}, {str(is_dir).lower()})"
+        )
+    window.show()
+    return b"OK"
+
+
+def _start_ipc_listener(window: "webview.Window") -> None:
+    """在主实例中启动后台线程，监听后续实例转发来的打开请求。"""
+
+    def listener() -> None:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            # 注意：Windows 上不设 SO_REUSEADDR（其语义会允许重复绑定同一端口）
+            server.bind((IPC_HOST, IPC_PORT))
+        except OSError:
+            logger.warning("单实例端口 %d 绑定失败，单实例功能降级", IPC_PORT)
+            return
+        server.listen(4)
+        logger.info("单实例监听就绪 %s:%d", IPC_HOST, IPC_PORT)
+        while True:
+            try:
+                conn, _ = server.accept()
+            except OSError:
+                return  # 服务套接字已关闭（进程退出）
+            with conn:
+                try:
+                    conn.settimeout(2.0)
+                    chunks: list[bytes] = []
+                    while not (chunks and chunks[-1].endswith(b"\n")):
+                        chunk = conn.recv(4096)
+                        if not chunk:
+                            break
+                        chunks.append(chunk)
+                    reply = _handle_ipc_payload(window, b"".join(chunks))
+                    conn.sendall(reply)
+                except OSError:
+                    logger.exception("IPC 连接处理异常")
+
+    threading.Thread(target=listener, daemon=True).start()
+
+
+def _try_forward_to_running_instance(targets: list[str]) -> bool:
+    """把启动目标转发给已运行实例；返回 True 表示本进程应直接退出。"""
+    try:
+        with socket.create_connection((IPC_HOST, IPC_PORT), timeout=1.0) as sock:
+            sock.settimeout(3.0)
+            sock.sendall((json.dumps({"paths": targets}) + "\n").encode("utf-8"))
+            reply = sock.recv(16)
+            return reply.startswith(b"OK")
+    except OSError:
+        return False  # 无人监听：本进程即主实例
+
+
 def _on_window_loaded() -> None:
     """窗口加载完成后的订阅与冒烟处理。"""
     window = webview.windows[0]
     # 订阅拖拽（Python 侧订阅后 WebView2 才会上报完整路径）
     window.dom.body.events.drop += _on_files_dropped
+    # 单实例：监听后续实例转发来的打开请求
+    _start_ipc_listener(window)
     # 冒烟模式：自检通过后 4 秒自动退出（供自动化测试验证"能启动不崩溃"）
     if os.environ.get("MD_VIEWER_SMOKE") == "1":
         _smoke_self_check(window)
@@ -142,7 +218,11 @@ def main() -> None:
     """应用主入口。"""
     setup_logging()
     logger.info("md-viewer 启动")
-    initial_path, initial_is_dir = resolve_initial_target(sys.argv[1:])
+    targets = [item for item in sys.argv[1:] if item.strip()]
+    if _try_forward_to_running_instance(targets):
+        logger.info("已转发给运行中的实例，本进程退出")
+        return
+    initial_path, initial_is_dir = resolve_initial_target(targets)
     api = Api(initial_path, initial_is_dir)
     window = webview.create_window(
         APP_TITLE,

@@ -118,6 +118,41 @@ body.no-sidebar #sidebar, body.no-sidebar #sidebar-resizer { display: none; }
 
 /* ---------- 内容区 ---------- */
 #content { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; background: #ffffff; }
+
+/* ---------- 标签条 ---------- */
+#tabbar {
+  display: flex;
+  flex: 0 0 auto;
+  overflow-x: auto;
+  background: #f0f1f3;
+  border-bottom: 1px solid #e1e4e8;
+  min-height: 35px;
+}
+#tabbar:empty::before {
+  content: "（未打开标签）";
+  padding: 8px 12px;
+  color: #9ea7b0;
+  font-size: 12px;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-right: 1px solid #e1e4e8;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 13px;
+  color: #57606a;
+  user-select: none;
+}
+.tab:hover { background: #e8ebef; }
+.tab.active { background: #ffffff; color: #24292f; font-weight: 600; box-shadow: inset 0 2px 0 #0969da; }
+.tab-title { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+.tab.dirty { color: #0969da; }
+.tab-close { padding: 0 4px; border-radius: 4px; color: #9ea7b0; }
+.tab-close:hover { background: #d8dde2; color: #cf222e; }
+
 #preview {
   flex: 1 1 auto;
   overflow: auto;
