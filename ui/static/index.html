@@ -11,8 +11,9 @@
 <body>
 <header id="toolbar">
   <button id="btn-open-folder" title="选择一个文件夹，列出其中所有 Markdown 文件">打开文件夹</button>
-  <button id="btn-open-file" title="打开单个 Markdown 文件">打开文件</button>
+  <button id="btn-open-file" title="打开单个 Markdown 文件（Ctrl+O）">打开文件</button>
   <button id="btn-refresh" title="重新扫描当前文件夹">刷新</button>
+  <button id="btn-sidebar" class="active" title="显示 / 隐藏左侧导航栏（Ctrl+B）">侧栏</button>
   <span class="sep"></span>
   <div id="mode-switch">
     <button id="btn-mode-preview" class="mode active" title="渲染阅读模式">预览</button>
@@ -32,8 +33,11 @@
     </div>
     <nav id="file-tree"><div class="tree-empty">点击"打开文件夹"浏览 Markdown 文件</div></nav>
   </aside>
+  <div id="sidebar-resizer" title="拖动调节导航栏宽度；双击恢复默认；Ctrl+B 隐藏/显示"></div>
   <div id="content">
-    <div id="preview" class="markdown-body"></div>
+    <div id="preview" class="markdown-body">
+      <p class="preview-placeholder">把 .md 文件拖进窗口，或点击顶部按钮打开。<br>Ctrl+O 打开文件 · Ctrl+B 隐藏/显示导航栏。</p>
+    </div>
     <textarea id="editor" spellcheck="false" hidden></textarea>
   </div>
 </div>

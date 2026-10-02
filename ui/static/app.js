@@ -24,6 +24,13 @@ function escapeHtml(text) {
     .replace(/"/g, "&quot;");
 }
 
+/* ---------- 拖放守卫（必须在脚本顶层立即注册） ----------
+ * HTML5 规范：dragover 不阻止默认行为，drop 事件不会触发；
+ * 且 WebView2 默认会把拖入文件当作页面导航打开、顶掉整个界面。
+ * 这里只阻止默认行为，真正的文件路径由 Python 侧 dom drop 订阅通道获取。 */
+window.addEventListener("dragover", (event) => event.preventDefault());
+window.addEventListener("drop", (event) => event.preventDefault());
+
 function setStatus(text, isError) {
   const el = $("status-text");
   el.textContent = text;
@@ -43,6 +50,7 @@ window.addEventListener("pywebviewready", () => {
 async function init() {
   bindToolbar();
   bindKeyboard();
+  initSidebarResizer();
   // 供 Python 侧拖拽回调调用的入口（pywebview 的 dom 事件在 Python 拿到完整路径）
   window.app = {
     loadFromPath: (path) => loadFile(path),
@@ -75,6 +83,7 @@ function bindToolbar() {
     if (state.folderPath) openFolder(state.folderPath);
   });
 
+  $("btn-sidebar").addEventListener("click", toggleSidebar);
   $("btn-mode-preview").addEventListener("click", () => switchMode("preview"));
   $("btn-mode-edit").addEventListener("click", () => switchMode("edit"));
   $("btn-save").addEventListener("click", saveCurrent);
@@ -87,6 +96,57 @@ function bindKeyboard() {
       event.preventDefault();
       if (state.mode === "edit") saveCurrent();
     }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "b") {
+      event.preventDefault();
+      toggleSidebar();
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "o") {
+      event.preventDefault();
+      $("btn-open-file").click();
+    }
+  });
+}
+
+/* ---------- 侧栏开关与宽度调节 ---------- */
+const SIDEBAR_DEFAULT_WIDTH = 260;
+const SIDEBAR_MIN_WIDTH = 160;
+const SIDEBAR_MAX_WIDTH = 520;
+
+function toggleSidebar() {
+  const hidden = document.body.classList.toggle("no-sidebar");
+  $("btn-sidebar").className = hidden ? "" : "active";
+}
+
+function initSidebarResizer() {
+  const resizer = $("sidebar-resizer");
+  const sidebar = $("sidebar");
+
+  resizer.addEventListener("dblclick", () => {
+    sidebar.style.width = SIDEBAR_DEFAULT_WIDTH + "px";
+  });
+
+  resizer.addEventListener("mousedown", (startEvent) => {
+    startEvent.preventDefault();
+    const start_x = startEvent.clientX;
+    const start_width = sidebar.getBoundingClientRect().width;
+    resizer.className = "dragging";
+    document.body.classList.add("resizing");
+
+    const on_move = (moveEvent) => {
+      const width = Math.min(
+        SIDEBAR_MAX_WIDTH,
+        Math.max(SIDEBAR_MIN_WIDTH, start_width + (moveEvent.clientX - start_x))
+      );
+      sidebar.style.width = width + "px";
+    };
+    const on_up = () => {
+      resizer.className = "";
+      document.body.classList.remove("resizing");
+      document.removeEventListener("mousemove", on_move);
+      document.removeEventListener("mouseup", on_up);
+    };
+    document.addEventListener("mousemove", on_move);
+    document.addEventListener("mouseup", on_up);
   });
 }
 

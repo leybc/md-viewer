@@ -33,6 +33,7 @@ body { display: flex; flex-direction: column; }
 }
 #toolbar button:hover:not(:disabled) { background: #f0f3f6; border-color: #b6bec7; }
 #toolbar button:disabled { color: #9ea7b0; cursor: default; }
+#toolbar button.active { background: #dbeafe; border-color: #0969da; color: #0969da; }
 #toolbar .sep { width: 1px; height: 20px; background: #d0d7de; margin: 0 4px; }
 #mode-switch { display: flex; }
 #mode-switch .mode { border-radius: 0; }
@@ -54,6 +55,20 @@ body { display: flex; flex-direction: column; }
 /* ---------- 主区域 ---------- */
 #main { display: flex; flex: 1 1 auto; min-height: 0; }
 
+/* 侧栏宽度调节手柄：夹在侧栏与内容区之间，拖动调宽，双击恢复默认 */
+#sidebar-resizer {
+  width: 5px;
+  flex: 0 0 auto;
+  cursor: col-resize;
+  background: transparent;
+  margin-left: -5px;
+  z-index: 10;
+}
+#sidebar-resizer:hover, #sidebar-resizer.dragging { background: #0969da; opacity: 0.45; }
+
+/* 侧栏隐藏态：侧栏与手柄都不占位，预览区占满全宽 */
+body.no-sidebar #sidebar, body.no-sidebar #sidebar-resizer { display: none; }
+
 #sidebar {
   width: 260px;
   flex: 0 0 auto;
@@ -62,6 +77,8 @@ body { display: flex; flex-direction: column; }
   background: #f0f1f3;
   border-right: 1px solid #e1e4e8;
   min-height: 0;
+  min-width: 160px;
+  max-width: 520px;
 }
 #tree-header {
   display: flex;
@@ -161,6 +178,10 @@ body { display: flex; flex-direction: column; }
 .markdown-body hr { border: none; border-top: 1px solid #e1e4e8; margin: 1.5em 0; }
 .markdown-body li.task-list-item { list-style: none; margin-left: -1.4em; }
 .markdown-body .error { color: #cf222e; }
+.markdown-body .preview-placeholder { color: #9ea7b0; font-size: 14px; line-height: 2; }
+
+/* 拖拽调宽期间禁止文本选中，避免拖动手感发涩 */
+body.resizing { user-select: none; cursor: col-resize; }
 
 /* ---------- 状态栏 ---------- */
 #statusbar {

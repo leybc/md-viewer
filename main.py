@@ -87,18 +87,22 @@ def _on_files_dropped(event: dict) -> None:
 
     pywebview 在 WebView2 后端把拖入文件的完整路径注入事件数据的
     pywebviewFullPath 字段（须在 Python 侧订阅 drop 才生效）。
+    缺少该字段的项说明路径通道未生效，静默忽略，不产生误导提示。
     """
     window = webview.windows[0]
     files = event.get("dataTransfer", {}).get("files", [])
     for item in files:
         full_path = item.get("pywebviewFullPath")
-        if full_path and file_service.is_markdown_file(full_path):
+        if not full_path:
+            continue
+        if file_service.is_markdown_file(full_path):
             logger.info("拖入文件：%s", full_path)
             window.evaluate_js(
                 f"window.app && window.app.loadFromPath({json.dumps(full_path)})"
             )
             return
-    if files:
+    # 所有项都有路径但都不是 Markdown 时才提示（避免路径通道异常时的误导）
+    if files and all(item.get("pywebviewFullPath") for item in files):
         logger.info("拖入的内容不是 Markdown 文件，已忽略")
         window.evaluate_js(
             "window.app && window.app.setStatus && window.app.setStatus("
