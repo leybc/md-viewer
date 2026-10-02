@@ -10,18 +10,34 @@
 </head>
 <body>
 <header id="toolbar">
-  <button id="btn-open-folder" title="选择一个文件夹，列出其中所有 Markdown 文件">打开文件夹</button>
-  <button id="btn-open-file" title="打开单个 Markdown 文件（Ctrl+O）">打开文件</button>
-  <button id="btn-refresh" title="重新扫描当前文件夹">刷新</button>
-  <button id="btn-sidebar" class="active" title="显示 / 隐藏左侧导航栏（Ctrl+B）">侧栏</button>
+  <button id="btn-open-folder" class="icon-btn" title="打开文件夹（列出其中所有 Markdown 文件）">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+  </button>
+  <button id="btn-open-file" class="icon-btn" title="打开文件（Ctrl+O）">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15h6"/></svg>
+  </button>
+  <button id="btn-refresh" class="icon-btn" title="刷新（重新扫描当前文件夹）">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+  </button>
+  <button id="btn-sidebar" class="icon-btn active" title="显示 / 隐藏左侧导航栏（Ctrl+B）">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+  </button>
   <span class="sep"></span>
   <div id="mode-switch">
-    <button id="btn-mode-preview" class="mode active" title="渲染阅读模式">预览</button>
-    <button id="btn-mode-edit" class="mode" title="源码编辑模式">编辑</button>
+    <button id="btn-mode-preview" class="icon-btn mode active" title="预览（渲染阅读模式）">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    <button id="btn-mode-edit" class="icon-btn mode" title="编辑（源码编辑模式）">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    </button>
   </div>
   <span class="sep"></span>
-  <button id="btn-save" disabled title="保存当前文件（Ctrl+S）">保存</button>
-  <button id="btn-export" disabled title="把当前文件导出为独立 HTML">导出 HTML</button>
+  <button id="btn-save" class="icon-btn" disabled title="保存当前文件（Ctrl+S）">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+  </button>
+  <button id="btn-export" class="icon-btn" disabled title="导出为独立 HTML">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
+  </button>
   <span id="current-file">未打开文件</span>
 </header>
 

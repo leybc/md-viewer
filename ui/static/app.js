@@ -274,8 +274,8 @@ function switchMode(mode) {
   state.mode = mode;
   $("preview").hidden = mode !== "preview";
   $("editor").hidden = mode !== "edit";
-  $("btn-mode-preview").className = "mode" + (mode === "preview" ? " active" : "");
-  $("btn-mode-edit").className = "mode" + (mode === "edit" ? " active" : "");
+  $("btn-mode-preview").className = "icon-btn mode" + (mode === "preview" ? " active" : "");
+  $("btn-mode-edit").className = "icon-btn mode" + (mode === "edit" ? " active" : "");
 }
 
 /* ---------- 文件加载 / 保存 / 导出 ---------- */
@@ -374,7 +374,7 @@ function markTreeActive(path) {
 /* ---------- 侧栏开关与宽度调节 ---------- */
 function toggleSidebar() {
   const hidden = document.body.classList.toggle("no-sidebar");
-  $("btn-sidebar").className = hidden ? "" : "active";
+  $("btn-sidebar").className = "icon-btn" + (hidden ? "" : " active");
 }
 
 function initSidebarResizer() {

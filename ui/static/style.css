@@ -34,6 +34,9 @@ body { display: flex; flex-direction: column; }
 #toolbar button:hover:not(:disabled) { background: #f0f3f6; border-color: #b6bec7; }
 #toolbar button:disabled { color: #9ea7b0; cursor: default; }
 #toolbar button.active { background: #dbeafe; border-color: #0969da; color: #0969da; }
+/* 图标按钮：紧凑方寸、SVG 垂直居中 */
+#toolbar button.icon-btn { padding: 6px 8px; line-height: 0; }
+#toolbar button.icon-btn svg { display: block; }
 #toolbar .sep { width: 1px; height: 20px; background: #d0d7de; margin: 0 4px; }
 #mode-switch { display: flex; }
 #mode-switch .mode { border-radius: 0; }
