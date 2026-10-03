@@ -128,8 +128,11 @@ function bindToolbar() {
     if (chosen.ok) await loadFile(chosen.path);
   });
 
-  $("btn-refresh").addEventListener("click", () => {
-    if (state.folderPath) openFolder(state.folderPath);
+  $("btn-refresh").addEventListener("click", async () => {
+    // 刷新语义：① 重新扫描导航树；② 重新读取当前标签（外部更新后回到磁盘版本）
+    if (state.folderPath) await openFolder(state.folderPath);
+    const tag = activeTag();
+    if (tag && !isDirty(tag)) await reloadTag(state.activeIndex);
   });
 
   $("btn-sidebar").addEventListener("click", toggleSidebar);
@@ -201,9 +204,57 @@ function storeEditingState() {
   }
 }
 
+/* 重新读取磁盘上的文件并覆盖指定标签内容（外部更新刷新用）。
+ * 有未保存修改时询问：确定 → 放弃本地修改读入新内容；取消 → 保留现状。 */
+async function reloadTag(index) {
+  const tag = state.tags[index];
+  if (!tag) return false;
+  if (isDirty(tag) && !window.confirm('"' + tag.name + '" 有未保存的修改，重新读取将放弃这些修改，确定？')) {
+    return false;
+  }
+  const read = await window.pywebview.api.read_file(tag.path);
+  if (!read.ok) {
+    setStatus("重新读取失败：" + read.error, true);
+    return false;
+  }
+  tag.content = read.content;
+  tag.diskContent = read.content;
+  if (index === state.activeIndex) {
+    $("editor").value = tag.content;
+    updateGutter();
+    renderTabs();
+    renderPreview(tag.content, dirOf(tag.path));
+  } else {
+    renderTabs();
+  }
+  setStatus("已重新读入：" + tag.name);
+  return true;
+}
+
+/* 对比磁盘版本检测指定标签是否已被外部修改（返回 Promise<bool>） */
+async function tagChangedOnDisk(tag) {
+  const read = await window.pywebview.api.read_file(tag.path);
+  if (!read.ok) return false;
+  return read.content !== tag.diskContent;
+}
+
 function activateTag(index) {
   if (index < 0 || index >= state.tags.length) return;
   storeEditingState();
+  const switching_to = state.tags[index];
+  // 切换（含首次激活）时检测外部修改：磁盘内容与最近读入版本不一致即提示重读
+  tagChangedOnDisk(switching_to).then((changed) => {
+    if (changed && index === state.activeIndex && state.tags[index] === switching_to) {
+      const stale = isDirty(switching_to)
+        ? '"' + switching_to.name + '" 已被外部修改，且本地有未保存的修改。\n重新读取将放弃本地修改，确定？\n（取消则保留本地内容，可稍后点刷新按钮重读）'
+        : '"' + switching_to.name + '" 已被外部修改，重新读取最新内容？';
+      if (window.confirm(stale)) {
+        reloadTag(index);
+        return;
+      }
+      setStatus("已保留本地内容（该文件外部有更新）", true);
+    }
+  });
   state.activeIndex = index;
   const tag = state.tags[index];
   $("current-file").textContent = tag.path;
