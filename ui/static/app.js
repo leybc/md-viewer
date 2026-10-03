@@ -308,6 +308,43 @@ async function renderPreview(content, baseDir) {
   }
   $("preview").innerHTML = result.html;
   $("preview").scrollTop = 0;
+  await renderMermaidBlocks();
+}
+
+/* ---------- Mermaid 图形渲染 ----------
+ * ```mermaid 代码块替换为 SVG 图形（mermaid.min.js 本地离线渲染）；
+ * 渲染失败（语法错误等）回退为普通代码块原文显示，并附错误提示。 */
+let mermaidSeq = 0;
+
+async function renderMermaidBlocks() {
+  if (typeof mermaid === "undefined") return;
+  const blocks = document.querySelectorAll("#preview pre > code[class*='mermaid']");
+  for (const code of blocks) {
+    const pre = code.parentElement;
+    const source = code.textContent;
+    const holder = document.createElement("div");
+    holder.className = "mermaid-figure";
+    const id = "mermaid-d" + ++mermaidSeq;
+    try {
+      // v10 手动渲染前必须显式初始化（startOnLoad 关闭避免双重渲染；loose 允许节点内 HTML 如 <br/>）
+      mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+      const render = await mermaid.render(id, source);
+      holder.innerHTML = render.svg;
+    } catch (err) {
+      holder.className = "mermaid-figure mermaid-error";
+      const tip = document.createElement("p");
+      tip.className = "error";
+      tip.textContent = "Mermaid 语法错误：" + (err && err.message ? err.message : err);
+      const restore = document.createElement("pre");
+      const restoreCode = document.createElement("code");
+      restoreCode.textContent = source;
+      restore.appendChild(restoreCode);
+      holder.appendChild(tip);
+      holder.appendChild(restore);
+      setStatus("Mermaid 渲染失败：" + (err && err.message ? err.message : err), true);
+    }
+    pre.replaceWith(holder);
+  }
 }
 
 async function saveCurrent() {
