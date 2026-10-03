@@ -311,6 +311,32 @@ async function renderPreview(content, baseDir) {
   await renderMermaidBlocks();
 }
 
+/* 渲染后裁字校正：mermaid 节点高度按默认字体度量，中文多行文字常溢出矩形节点框。
+ * 仅校正 rect 节点（菱形/圆形等 polygon 几何不适用扩高，显式字体初始化后其度量已准）；
+ * 比较文字实际高度与矩形高度，把差值补到 rect 高度并上移形状与文字容器各一半，保持中心不变。 */
+function fixMermaidClip(root) {
+  root.querySelectorAll(".node").forEach((node) => {
+    const label = node.querySelector(".nodeLabel");
+    const rect = node.querySelector("rect");
+    if (!label || !rect) return;
+    const text_height = label.getBoundingClientRect().height;
+    const shape_height = parseFloat(rect.getAttribute("height") || "0");
+    if (!text_height || !shape_height) return;
+    const overflow = text_height + 12 - shape_height; // 12px 上下余量
+    if (overflow > 0) {
+      rect.setAttribute("height", (shape_height + overflow).toFixed(1));
+      const y = parseFloat(rect.getAttribute("y") || "0");
+      if (!Number.isNaN(y)) rect.setAttribute("y", (y - overflow / 2).toFixed(1));
+      const foreign = node.querySelector("foreignObject");
+      if (foreign) {
+        const fy = parseFloat(foreign.getAttribute("y") || "0");
+        if (!Number.isNaN(fy)) foreign.setAttribute("y", (fy - overflow / 2).toFixed(1));
+        foreign.setAttribute("height", (text_height + 8).toFixed(1));
+      }
+    }
+  });
+}
+
 /* ---------- Mermaid 图形渲染 ----------
  * ```mermaid 代码块替换为 SVG 图形（mermaid.min.js 本地离线渲染）；
  * 渲染失败（语法错误等）回退为普通代码块原文显示，并附错误提示。 */
@@ -326,10 +352,21 @@ async function renderMermaidBlocks() {
     holder.className = "mermaid-figure";
     const id = "mermaid-d" + ++mermaidSeq;
     try {
-      // v10 手动渲染前必须显式初始化（startOnLoad 关闭避免双重渲染；loose 允许节点内 HTML 如 <br/>）
-      mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+      // v10 手动渲染前必须显式初始化（startOnLoad 关闭避免双重渲染；loose 允许节点内 HTML 如 <br/>）。
+      // fontFamily/fontSize 显式指定：默认按系统字体度量节点高度，中文多行文本实测会超出节点框被裁剪；
+      // 统一字体后测量与渲染一致，配合 CSS 行高修正节点文字完整显示
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "loose",
+        theme: "default",
+        fontFamily: '"Microsoft YaHei", "Segoe UI", sans-serif',
+        themeVariables: { fontSize: "14px" },
+        flowchart: { htmlLabels: true, curve: "basis", padding: 10 },
+      });
       const render = await mermaid.render(id, source);
       holder.innerHTML = render.svg;
+      // 渲染后校正：遍历本图节点，把实际文字高度回写到节点容器（解决度量偏差导致的裁字）
+      requestAnimationFrame(() => fixMermaidClip(holder));
     } catch (err) {
       holder.className = "mermaid-figure mermaid-error";
       const tip = document.createElement("p");
