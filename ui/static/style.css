@@ -2,6 +2,10 @@
 
 /* ---------- 基础布局 ---------- */
 * { box-sizing: border-box; }
+/* pywebview 默认给 body 注入 user-select:none（框架级，start 无 text_select 参数可关，
+ * 实测 6.2.1 无该参数）。预览区与编辑区必须恢复文字可选，!important 覆盖框架注入。 */
+#preview, #preview * { user-select: text !important; -webkit-user-select: text !important; cursor: auto; }
+#editor { user-select: text !important; -webkit-user-select: text !important; }
 html, body {
   margin: 0;
   height: 100%;
