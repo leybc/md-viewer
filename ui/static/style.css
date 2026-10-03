@@ -161,9 +161,26 @@ body.no-sidebar #sidebar, body.no-sidebar #sidebar-resizer { display: none; }
   overflow: auto;
   padding: 28px 36px;
 }
+/* 编辑模式：左侧行号栏 + 源码框（wrap=off，行号与文本行一一对应） */
+#editor-wrap { flex: 1 1 auto; display: flex; min-width: 0; min-height: 0; overflow: hidden; }
+#editor-wrap[hidden] { display: none; }
+#editor-gutter {
+  flex: 0 0 auto;
+  width: 52px;
+  padding: 24px 10px 24px 0;
+  text-align: right;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #9ea7b0;
+  background: #f6f7f9;
+  border-right: 1px solid #e1e4e8;
+  overflow: hidden;
+  white-space: pre;
+  user-select: none;
+}
 #editor {
   flex: 1 1 auto;
-  width: 100%;
   border: none;
   outline: none;
   resize: none;
@@ -216,6 +233,20 @@ body.no-sidebar #sidebar, body.no-sidebar #sidebar-resizer { display: none; }
 .markdown-body hr { border: none; border-top: 1px solid #e1e4e8; margin: 1.5em 0; }
 .markdown-body li.task-list-item { list-style: none; margin-left: -1.4em; }
 .markdown-body .error { color: #cf222e; }
+
+/* 渲染行号：顶层块左缘显示其源文件起始行号（后端 data-source-line 注入） */
+.markdown-body > [data-source-line] { position: relative; }
+.markdown-body pre { position: relative; }
+.markdown-body > [data-source-line]::before,
+.markdown-body pre > code[data-source-line]::before {
+  content: attr(data-source-line);
+  position: absolute;
+  left: -32px;
+  top: 0;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 11px;
+  color: #c3cad1;
+}
 .markdown-body .preview-placeholder { color: #9ea7b0; font-size: 14px; line-height: 2; }
 
 /* 拖拽调宽期间禁止文本选中，避免拖动手感发涩 */

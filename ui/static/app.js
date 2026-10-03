@@ -76,6 +76,7 @@ window.addEventListener("pywebviewready", () => {
 async function init() {
   bindToolbar();
   bindKeyboard();
+  bindEditor();
   initSidebarResizer();
   // 供 Python 侧调用（拖拽 / 单实例 IPC 转发）
   window.app = {
@@ -96,6 +97,23 @@ async function openPath(path, isDir) {
   } else {
     await loadFile(path);
   }
+}
+
+/* ---------- 编辑器（行号栏 + 滚动同步） ---------- */
+function bindEditor() {
+  $("editor").addEventListener("input", updateGutter);
+  // 行号栏跟随源码框垂直滚动，保持同一行对齐
+  $("editor").addEventListener("scroll", () => {
+    $("editor-gutter").scrollTop = $("editor").scrollTop;
+  });
+}
+
+function updateGutter() {
+  const line_count = $("editor").value.split("\n").length;
+  const numbers = new Array(line_count);
+  for (let i = 0; i < line_count; i++) numbers[i] = i + 1;
+  $("editor-gutter").textContent = numbers.join("\n");
+  $("editor-gutter").scrollTop = $("editor").scrollTop;
 }
 
 /* ---------- 顶栏 ---------- */
@@ -191,6 +209,7 @@ function activateTag(index) {
   $("current-file").textContent = tag.path;
   $("current-file").title = tag.path;
   $("editor").value = tag.content;
+  updateGutter();
   $("btn-save").disabled = false;
   $("btn-export").disabled = false;
   renderTabs();
@@ -210,6 +229,7 @@ function closeTag(index) {
     $("current-file").textContent = "未打开文件";
     $("current-file").title = "";
     $("editor").value = "";
+    updateGutter();
     $("preview").innerHTML = PREVIEW_PLACEHOLDER;
     $("btn-save").disabled = true;
     $("btn-export").disabled = true;
@@ -270,10 +290,11 @@ function switchMode(mode) {
   } else {
     const tag = activeTag();
     $("editor").value = tag ? tag.content : "";
+    updateGutter();
   }
   state.mode = mode;
   $("preview").hidden = mode !== "preview";
-  $("editor").hidden = mode !== "edit";
+  $("editor-wrap").hidden = mode !== "edit";
   $("btn-mode-preview").className = "icon-btn mode" + (mode === "preview" ? " active" : "");
   $("btn-mode-edit").className = "icon-btn mode" + (mode === "edit" ? " active" : "");
 }

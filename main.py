@@ -134,7 +134,8 @@ def _smoke_self_check(window: "webview.Window") -> None:
     """冒烟自检：验证关键 DOM 元素与 pywebview 桥接真实就绪（能启动且能交互）。"""
     ready = window.evaluate_js(
         "!!(document.getElementById('toolbar') && document.getElementById('preview')"
-        " && document.getElementById('file-tree') && window.pywebview"
+        " && document.getElementById('file-tree') && document.getElementById('editor-wrap')"
+        " && document.getElementById('editor-gutter') && window.pywebview"
         " && window.pywebview.api && window.pywebview.api.get_initial_target)"
     )
     if ready:
@@ -225,8 +226,15 @@ def _on_window_loaded() -> None:
     # 冒烟模式：自检通过后 4 秒自动退出（供自动化测试验证"能启动不崩溃"）
     if os.environ.get("MD_VIEWER_SMOKE") == "1":
         _smoke_self_check(window)
-        logger.info("冒烟模式：4 秒后自动退出")
-        timer = threading.Timer(4.0, window.destroy)
+        # 编辑态冒烟（MD_VIEWER_SMOKE_EDIT=1）：切到编辑模式，供截图验证行号栏
+        if os.environ.get("MD_VIEWER_SMOKE_EDIT") == "1":
+            window.evaluate_js(
+                "document.getElementById('btn-mode-edit') && document.getElementById('btn-mode-edit').click()"
+            )
+        # 自退停留时长可配（默认 4 秒；截图验证时用 MD_VIEWER_SMOKE_LINGER 拉长窗口存活期）
+        linger = float(os.environ.get("MD_VIEWER_SMOKE_LINGER", "4"))
+        logger.info("冒烟模式：自退停留 %g 秒", linger)
+        timer = threading.Timer(linger, window.destroy)
         timer.daemon = True
         timer.start()
 

@@ -55,7 +55,10 @@
     <div id="preview" class="markdown-body">
       <p class="preview-placeholder">把 .md 文件拖进窗口，或点击顶部按钮打开。<br>Ctrl+O 打开文件 · Ctrl+B 隐藏/显示导航栏 · 支持多标签。</p>
     </div>
-    <textarea id="editor" spellcheck="false" hidden></textarea>
+    <div id="editor-wrap" hidden>
+      <div id="editor-gutter">1</div>
+      <textarea id="editor" spellcheck="false" wrap="off"></textarea>
+    </div>
   </div>
 </div>
 

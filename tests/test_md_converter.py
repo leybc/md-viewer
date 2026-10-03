@@ -4,11 +4,11 @@ from core.md_converter import convert
 
 
 def test_convert_headings_h1_to_h6():
-    """六级标题分别渲染为 h1~h6 标签。"""
+    """六级标题分别渲染为 h1~h6 标签（带源行号，行号恰等于标题级别）。"""
     md_text = "\n".join(f"{'#' * level} 标题{level}" for level in range(1, 7))
     html = convert(md_text)
     for level in range(1, 7):
-        assert f"<h{level}>标题{level}</h{level}>" in html
+        assert f'<h{level} data-source-line="{level}">标题{level}</h{level}>' in html
 
 
 def test_convert_bold_italic_strikethrough():
@@ -38,9 +38,9 @@ def test_convert_blockquote_nested():
 
 
 def test_convert_lists_ordered_unordered_nested():
-    """有序、无序与嵌套列表渲染为嵌套 ul/ol。"""
+    """有序、无序与嵌套列表渲染为嵌套 ul/ol（顶层列表带源行号）。"""
     html = convert("- 甲\n- 乙\n  - 乙一\n\n1. 第一\n2. 第二")
-    assert "<ul>" in html and "<ol>" in html
+    assert '<ul data-source-line="1">' in html and '<ol data-source-line="5">' in html
     assert "乙一" in html
 
 
@@ -52,9 +52,9 @@ def test_convert_task_list():
 
 
 def test_convert_table():
-    """GFM 管道表格渲染为 table/thead/tbody。"""
+    """GFM 管道表格渲染为 table/thead/tbody（带源行号）。"""
     html = convert("| 列A | 列B |\n| --- | --- |\n| 1 | 2 |")
-    assert "<table>" in html
+    assert '<table data-source-line="1">' in html
     assert "<th>列A</th>" in html
     assert "<td>1</td>" in html
 
@@ -91,4 +91,18 @@ def test_convert_empty_and_blank():
 
 def test_convert_no_trailing_newline():
     """边界：结尾无换行符的文本正常渲染。"""
-    assert "<h1>尾行</h1>" in convert("# 尾行")
+    assert '<h1 data-source-line="1">尾行</h1>' in convert("# 尾行")
+
+
+def test_convert_source_lines():
+    """渲染行号：顶层块元素携带 data-source-line（源起始行，1-based）。"""
+    html = convert("# 标题\n\n段落。\n")
+    assert '<h1 data-source-line="1">' in html
+    assert '<p data-source-line="3">' in html
+
+
+def test_convert_source_line_fence_and_table():
+    """渲染行号：代码块行号落在内部 code 标签，表格落在 table 标签。"""
+    html = convert("```python\ncode=1\n```\n\n|a|b|\n|-|-|\n|1|2|\n")
+    assert '<code data-source-line="1"' in html
+    assert '<table data-source-line="5">' in html
