@@ -13,7 +13,9 @@ from mdit_py_plugins.tasklists import tasklists_plugin
 # 解析器全局选项：
 # html=True   —— 渲染 Markdown 内嵌的 HTML 标签（查看器体验优先，仅用于打开本地可信文件）
 # linkify=True —— 自动把裸 URL 转为链接（GFM 行为）
-_PARSER_OPTIONS = {"html": True, "linkify": True, "typographer": False}
+# breaks=True —— 单个换行渲染为 <br>：笔记类文档（如课堂记录）普遍不带 Markdown 空行分段，
+#                严格 CommonMark 会把整段软换行合并成一行，阅读体验极差；查看器按所见即所得处理
+_PARSER_OPTIONS = {"html": True, "linkify": True, "typographer": False, "breaks": True}
 
 # 模块级共享解析器（初始化一次，避免每次渲染重复构建规则链）
 _converter: MarkdownIt | None = None

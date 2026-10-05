@@ -106,3 +106,11 @@ def test_convert_source_line_fence_and_table():
     html = convert("```python\ncode=1\n```\n\n|a|b|\n|-|-|\n|1|2|\n")
     assert '<code data-source-line="1"' in html
     assert '<table data-source-line="5">' in html
+
+
+def test_convert_soft_break_renders_br():
+    """breaks 选项：段落内单个换行渲染为 <br>（笔记类文档无空行分段时逐行显示）。"""
+    html = convert("第一行\n第二行\n第三行")
+    assert "第一行<br" in html
+    assert "第二行<br" in html
+    assert "第三行" in html
