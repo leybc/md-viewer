@@ -114,3 +114,26 @@ def test_convert_soft_break_renders_br():
     assert "第一行<br" in html
     assert "第二行<br" in html
     assert "第三行" in html
+
+
+def test_convert_preserves_leading_indent():
+    """行首缩进保留：笔记类文档的缩进层级渲染后不丢（空格转不换行空格）。
+
+    实际输出中 <br> 与 nbsp 之间夹有源换行符（"<br />\\n\\u00a0..."）。
+    """
+    html = convert("顶层\n    缩进一级\n        缩进二级")
+    assert "<br />\n\u00a0\u00a0\u00a0\u00a0缩进一级" in html
+    assert "<br />\n\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0缩进二级" in html
+
+
+def test_convert_tab_indent_expanded():
+    """制表符缩进按 4 空格宽度展开为不换行空格。"""
+    html = convert("顶层\n\t缩进行")
+    assert "<br />\n\u00a0\u00a0\u00a0\u00a0缩进行" in html
+
+
+def test_convert_code_block_indent_untouched():
+    """代码块内部内容不被行首缩进替换影响（保持原样）。"""
+    html = convert("```python\nif True:\n    print(1)\n```")
+    assert "    print(1)" in html  # 普通空格原样保留
+    assert "\u00a0" not in html

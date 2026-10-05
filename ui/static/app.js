@@ -99,12 +99,47 @@ async function openPath(path, isDir) {
   }
 }
 
-/* ---------- 编辑器（行号栏 + 滚动同步） ---------- */
+/* ---------- 编辑器（行号栏 + 滚动同步 + Tab 缩进） ---------- */
+const EDITOR_TAB_WIDTH = 4;
+
 function bindEditor() {
-  $("editor").addEventListener("input", updateGutter);
+  const editor = $("editor");
+  editor.addEventListener("input", updateGutter);
   // 行号栏跟随源码框垂直滚动，保持同一行对齐
-  $("editor").addEventListener("scroll", () => {
-    $("editor-gutter").scrollTop = $("editor").scrollTop;
+  editor.addEventListener("scroll", () => {
+    $("editor-gutter").scrollTop = editor.scrollTop;
+  });
+  // Tab 缩进（Notepad++ 惯例）：无选区插入 4 空格；有选区整体缩进；Shift+Tab 反缩进
+  editor.addEventListener("keydown", (event) => {
+    if (event.key !== "Tab") return;
+    event.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    const value = editor.value;
+    if (start === end && !event.shiftKey) {
+      // 无选区：插入 4 空格
+      editor.setRangeText(" ".repeat(EDITOR_TAB_WIDTH), start, end, "end");
+    } else {
+      // 有选区（或 Shift+Tab）：对选中行做缩进/反缩进
+      const line_start = value.lastIndexOf("\n", start - 1) + 1;
+      const line_end = value.indexOf("\n", end) === -1 ? value.length : value.indexOf("\n", end);
+      const block = value.slice(line_start, line_end);
+      const lines = block.split("\n");
+      const updated = lines
+        .map((line) => {
+          if (event.shiftKey) {
+            const cut = line.match(/^ {1,4}/);
+            return cut ? line.slice(cut[0].length) : line;
+          }
+          return line.length ? " ".repeat(EDITOR_TAB_WIDTH) + line : line;
+        })
+        .join("\n");
+      editor.setRangeText(updated, line_start, line_end, "end");
+      // 重选整块，支持连续按 Tab/Shift+Tab
+      const new_end = line_start + updated.length;
+      editor.setSelectionRange(line_start, new_end);
+    }
+    updateGutter();
   });
 }
 
