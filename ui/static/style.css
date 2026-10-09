@@ -165,7 +165,8 @@ body.no-sidebar #sidebar, body.no-sidebar #sidebar-resizer { display: none; }
   overflow: auto;
   padding: 28px 36px;
 }
-/* 编辑模式：左侧行号栏 + 源码框（wrap=off，行号与文本行一一对应） */
+/* 编辑模式：左侧行号栏 + 源码框（自动换行 wrap=soft；行号对应逻辑行，
+ * 软换行的续行会让行号与视觉行有偏差——长行文档下以逻辑行号为准） */
 #editor-wrap { flex: 1 1 auto; display: flex; min-width: 0; min-height: 0; overflow: hidden; }
 #editor-wrap[hidden] { display: none; }
 #editor-gutter {
