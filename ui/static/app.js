@@ -109,8 +109,13 @@ function bindEditor() {
   editor.addEventListener("scroll", () => {
     $("editor-gutter").scrollTop = editor.scrollTop;
   });
-  // Tab 缩进（Notepad++ 惯例）：无选区插入 4 空格；有选区整体缩进；Shift+Tab 反缩进
+  // Tab 缩进（Notepad++ 惯例）：无选区插入 4 空格；有选区整体缩进；Shift+Tab 反缩进。
+  // 回车自动缩进：新行继承上一行的行首空白（主流编辑器惯例）；
+  // 若上一行是"纯空白+符号"（如列表 "- "），同时补一个同款列表符号
   editor.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey) {
+      if (handleEnterKey(editor, event)) return;
+    }
     if (event.key !== "Tab") return;
     event.preventDefault();
     const start = editor.selectionStart;
@@ -143,6 +148,41 @@ function bindEditor() {
   });
 }
 
+/* 回车自动缩进：取光标所在行的行首空白作为新行缩进。
+ * 返回 true 表示已处理（阻止默认换行）。列表行（- / * / 1. 等）额外补同款符号；
+ * 上一行只有列表符号没有内容时，回车改为清除缩进（清空列表项，符合主流编辑器行为）。 */
+function handleEnterKey(editor, event) {
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  if (start !== end) return false; // 有选区时走系统默认（覆盖选区换行）
+  const value = editor.value;
+  const line_start = value.lastIndexOf("\n", start - 1) + 1;
+  const current_line = value.slice(line_start, start);
+  const indent = current_line.match(/^[ \t]*/)[0];
+  const after_indent = current_line.slice(indent.length);
+  const list_marker = after_indent.match(/^([-*+]|\d+[.)])\s+/);
+  let insert = "\n" + indent;
+  if (list_marker) {
+    // 列表行有内容：新行补同款符号（有序列表序号 +1）
+    if (/^\d/.test(list_marker[1])) {
+      const num = parseInt(list_marker[1], 10) + 1;
+      insert += num + list_marker[1].slice(String(num - 1).length + 1) + " ";
+    } else {
+      insert += list_marker[1] + " ";
+    }
+  } else if (after_indent === "") {
+    // 上一行只有缩进/列表符号没有内容：清空该行缩进，取消列表（插入换行到行首）
+    editor.setRangeText("\n", line_start, start, "end");
+    updateGutter();
+    event.preventDefault();
+    return true;
+  }
+  editor.setRangeText(insert, start, end, "end");
+  updateGutter();
+  event.preventDefault();
+  return true;
+}
+
 function updateGutter() {
   const line_count = $("editor").value.split("\n").length;
   const numbers = new Array(line_count);
@@ -158,6 +198,7 @@ function bindToolbar() {
     if (chosen.ok) await openFolder(chosen.path);
   });
 
+  $("btn-new-file").addEventListener("click", newFile);
   $("btn-open-file").addEventListener("click", async () => {
     const chosen = await window.pywebview.api.open_file_dialog();
     if (chosen.ok) await loadFile(chosen.path);
@@ -191,6 +232,10 @@ function bindKeyboard() {
     if ((event.ctrlKey || event.metaKey) && key === "o") {
       event.preventDefault();
       $("btn-open-file").click();
+    }
+    if ((event.ctrlKey || event.metaKey) && key === "n") {
+      event.preventDefault();
+      newFile();
     }
     if ((event.ctrlKey || event.metaKey) && key === "w") {
       event.preventDefault();
@@ -502,6 +547,44 @@ async function exportCurrent() {
     return;
   }
   setStatus("已导出：" + result.path);
+}
+
+/* ---------- 新建文件 ---------- */
+/* 保存对话框选路径 → 建空文件 → 开成新标签。文件由后端立即落盘（content 为空、
+ * diskContent 一致），Ctrl+S 随时可安全写回。 */
+async function newFile() {
+  const window_api = window.pywebview.api;
+  const chosen = await window_api.new_file_dialog();
+  if (!chosen.ok) {
+    if (chosen.error !== "已取消") setStatus("新建失败：" + chosen.error, true);
+    return;
+  }
+  await openFolderIfInside(chosen.dir);
+  const tag = {
+    path: chosen.path,
+    name: nameOf(chosen.path),
+    content: "",
+    diskContent: "",
+  };
+  state.tags.push(tag);
+  activateTag(state.tags.length - 1);
+  switchMode("edit");
+  setStatus("已新建：" + chosen.path);
+}
+
+/* 新建文件位于当前浏览文件夹内时静默刷新导航树（否则不动树） */
+async function openFolderIfInside(dir) {
+  if (state.folderPath && dir && normPath(dir).startsWith(normPath(state.folderPath))) {
+    const result = await window.pywebview.api.scan_folder(state.folderPath);
+    if (result.ok) {
+      const tree = $("file-tree");
+      tree.innerHTML = "";
+      tree.appendChild(buildTreeList(result.root.children));
+      $("file-count").textContent = result.truncated
+        ? result.file_count + "+（已截断）"
+        : result.file_count + " 个文件";
+    }
+  }
 }
 
 /* ---------- 文件树 ---------- */

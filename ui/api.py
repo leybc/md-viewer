@@ -104,6 +104,32 @@ class Api:
             "truncated": result.truncated,
         }
 
+    # ---------- 新建 ----------
+
+    def new_file_dialog(self) -> dict:
+        """弹出保存对话框创建新的 Markdown 文件（立即落盘空文件）。"""
+        window = _get_window()
+        if window is None:
+            return {"ok": False, "error": "窗口未就绪"}
+        chosen = window.create_file_dialog(
+            webview.SAVE_DIALOG,
+            save_filename="未命名.md",
+            file_types=("Markdown 文件 (*.md;*.markdown)", "所有文件 (*.*)"),
+        )
+        if not chosen:
+            return {"ok": False, "error": "已取消"}
+        out_path = chosen[0] if isinstance(chosen, (list, tuple)) else str(chosen)
+        if not out_path.lower().endswith((".md", ".markdown")):
+            out_path += ".md"
+        result = file_service.write_text_file(out_path, "")
+        if not result.ok:
+            return {"ok": False, "error": result.error}
+        return {
+            "ok": True,
+            "path": out_path,
+            "dir": os.path.dirname(os.path.abspath(out_path)),
+        }
+
     # ---------- 读取 / 保存 ----------
 
     def read_file(self, path: str) -> dict:
