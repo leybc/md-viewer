@@ -312,6 +312,9 @@ body.resizing { user-select: none; cursor: col-resize; }
 .find-sep { width: 1px; height: 18px; background: #d0d7de; margin: 0 2px; }
 #btn-find-close { padding: 4px 8px; }
 
+/* 预览模式查找命中高亮（单命中方式；切换时恢复原文本节点） */
+.find-highlight { background: #fff176; color: #24292f; border-radius: 2px; }
+
 /* ---------- 状态栏 ---------- */
 #statusbar {
   flex: 0 0 auto;

@@ -423,10 +423,12 @@ function renderTabs() {
 function switchMode(mode) {
   if (mode === state.mode) return;
   if (mode === "preview") {
-    // 从编辑切回预览：用编辑器当前内容刷新渲染（不落盘）
+    // 从编辑切回预览：用编辑器当前内容刷新渲染（不落盘），
+    // 并滚动到光标所在的源行对应的渲染块（而不是从头显示）
     storeEditingState();
     const tag = activeTag();
-    if (tag) renderPreview(tag.content, dirOf(tag.path));
+    const caret_line = caretSourceLine();
+    if (tag) renderPreview(tag.content, dirOf(tag.path), caret_line);
   } else {
     const tag = activeTag();
     $("editor").value = tag ? tag.content : "";
@@ -439,16 +441,45 @@ function switchMode(mode) {
   $("btn-mode-edit").className = "icon-btn mode" + (mode === "edit" ? " active" : "");
 }
 
+/* 光标所在的源文件行号（1-based；取光标前最近的换行计数） */
+function caretSourceLine() {
+  const editor = $("editor");
+  return editor.value.slice(0, editor.selectionStart).split("\n").length;
+}
+
 /* ---------- 文件加载 / 保存 / 导出 ---------- */
-async function renderPreview(content, baseDir) {
+async function renderPreview(content, baseDir, scroll_to_line) {
   const result = await window.pywebview.api.convert_markdown(content, baseDir || null);
   if (!result.ok) {
     $("preview").innerHTML = '<p class="error">' + escapeHtml(result.error) + "</p>";
     return;
   }
   $("preview").innerHTML = result.html;
-  $("preview").scrollTop = 0;
+  if (scroll_to_line) {
+    scrollToSourceLine(scroll_to_line);
+  } else {
+    $("preview").scrollTop = 0;
+  }
   await renderMermaidBlocks();
+}
+
+/* 滚动预览区到指定源行对应的渲染块：块元素带有解析期注入的 data-source-line，
+ * 找到"起始行 ≤ 目标行的最后一个块"，把目标行置于预览区顶部附近（留 2 块上下文）。 */
+function scrollToSourceLine(line) {
+  const blocks = document.querySelectorAll("#preview [data-source-line]");
+  let target = null;
+  for (const block of blocks) {
+    const start = parseInt(block.getAttribute("data-source-line"), 10);
+    if (start <= line) {
+      target = block;
+    } else {
+      break;
+    }
+  }
+  if (target) {
+    const top = target.offsetTop - $("preview").offsetTop - 40;
+    $("preview").scrollTop = Math.max(0, top);
+  }
 }
 
 /* 渲染后裁字校正：mermaid 节点高度按默认字体度量，中文多行文字常溢出矩形节点框。
@@ -596,18 +627,27 @@ async function openFolderIfInside(dir) {
   }
 }
 
-/* ---------- 查找替换（编辑模式，Notepad++ 风格） ---------- */
-const find_state = { matches: [], current: -1 };
+/* ---------- 查找替换（编辑/预览双模式，Notepad++ 风格） ----------
+ * 编辑模式：textarea 选区定位 + 替换；
+ * 预览模式：对渲染 DOM 做文本搜索（隐藏标记恢复 + 高亮 span），替换不可用。 */
+const find_state = { matches: [], current: -1, preview_spans: [], preview_matches: [] };
+
+function findIsPreview() {
+  return state.mode === "preview";
+}
 
 function openFind(withReplace) {
   const bar = $("findbar");
   bar.hidden = false;
-  $("replace-input").hidden = !withReplace;
-  $("btn-replace").hidden = !withReplace;
-  $("btn-replace-all").hidden = !withReplace;
-  // 预填编辑器中的选区文本，方便直接查找
+  const preview_mode = findIsPreview();
+  // 替换控件仅编辑模式有意义（预览是只读渲染结果）
+  $("replace-input").hidden = !withReplace || preview_mode;
+  $("btn-replace").hidden = !withReplace || preview_mode;
+  $("btn-replace-all").hidden = !withReplace || preview_mode;
   const editor = $("editor");
-  const selected = editor.value.slice(editor.selectionStart, editor.selectionEnd);
+  const selected = preview_mode
+    ? String(window.getSelection())
+    : editor.value.slice(editor.selectionStart, editor.selectionEnd);
   if (selected && selected.length < 200 && !selected.includes("\n")) {
     $("find-input").value = selected;
   }
@@ -617,21 +657,82 @@ function openFind(withReplace) {
 }
 
 function closeFind() {
+  clearPreviewHighlights();
   $("findbar").hidden = true;
-  $("editor").focus();
+  if (!findIsPreview()) $("editor").focus();
 }
 
 function findCaseSensitive() {
   return $("find-case").checked;
 }
 
-/* 计算全部匹配位置（每次输入/开关变化后重算） */
+/* 清除预览模式的高亮标记 */
+function clearPreviewHighlights() {
+  for (const span of find_state.preview_spans) {
+    const parent = span.parentNode;
+    if (parent) {
+      parent.replaceChild(document.createTextNode(span.textContent), span);
+      parent.normalize();
+    }
+  }
+  find_state.preview_spans = [];
+}
+
+/* 预览模式：在渲染 DOM 的文本节点里收集匹配（返回匹配元素与文本位置） */
+function collectPreviewMatches(needle) {
+  clearPreviewHighlights();
+  const lower = !findCaseSensitive();
+  const target = lower ? needle.toLowerCase() : needle;
+  const walker = document.createTreeWalker($("preview"), NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) =>
+      node.parentElement.closest(".mermaid-figure") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+  });
+  const hits = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    const text = lower ? node.textContent.toLowerCase() : node.textContent;
+    let idx = text.indexOf(target);
+    while (idx !== -1) {
+      hits.push({ node, idx, len: target.length });
+      idx = text.indexOf(target, idx + target.length);
+    }
+  }
+  return hits;
+}
+
+function highlightPreviewMatch(hit) {
+  const range = document.createRange();
+  range.setStart(hit.node, hit.idx);
+  range.setEnd(hit.node, hit.idx + hit.len);
+  const span = document.createElement("span");
+  span.className = "find-highlight";
+  span.textContent = hit.node.textContent.substr(hit.idx, hit.len);
+  try {
+    range.deleteContents();
+    range.insertNode(span);
+    find_state.preview_spans.push(span);
+    span.scrollIntoView({ block: "center" });
+    return span;
+  } catch (err) {
+    return null;
+  }
+}
+
+/* 计算全部匹配位置（每次输入/开关变化后重算；模式不同实现不同） */
 function runFind() {
-  const editor = $("editor");
-  const needle = $("find-input").value;
   find_state.matches = [];
   find_state.current = -1;
-  if (needle) {
+  clearPreviewHighlights();
+  find_state.preview_matches = [];
+  const needle = $("find-input").value;
+  if (!needle) {
+    updateFindCount();
+    return;
+  }
+  if (findIsPreview()) {
+    find_state.preview_matches = collectPreviewMatches(needle);
+  } else {
+    const editor = $("editor");
     const haystack = findCaseSensitive() ? editor.value : editor.value.toLowerCase();
     const target = findCaseSensitive() ? needle : needle.toLowerCase();
     let pos = haystack.indexOf(target);
@@ -641,18 +742,14 @@ function runFind() {
     }
   }
   updateFindCount();
-  if (find_state.matches.length) {
-    // 从当前光标位置起找第一个不小于它的匹配
-    const pos = editor.selectionStart;
-    find_state.current = find_state.matches.findIndex(([s]) => s >= pos);
-    if (find_state.current === -1) find_state.current = 0;
-    selectMatch(find_state.current);
+  if (find_state.matches.length || find_state.preview_matches.length) {
+    findNext(false);
   }
 }
 
 function updateFindCount() {
   const el = $("find-count");
-  const total = find_state.matches.length;
+  const total = findIsPreview() ? find_state.preview_matches.length : find_state.matches.length;
   if (total === 0) {
     const needle = $("find-input").value;
     el.textContent = needle ? "无结果" : "0/0";
@@ -673,14 +770,24 @@ function selectMatch(index) {
 }
 
 function findNext(backward) {
-  if (!find_state.matches.length) {
+  const preview_mode = findIsPreview();
+  const total = preview_mode ? find_state.preview_matches.length : find_state.matches.length;
+  if (total === 0) {
     runFind();
-    if (!find_state.matches.length) return;
+    return;
   }
-  const total = find_state.matches.length;
   find_state.current = (find_state.current + (backward ? -1 : 1) + total) % total;
   updateFindCount();
-  selectMatch(find_state.current);
+  if (preview_mode) {
+    // 预览模式：重新做一次匹配（避免前次高亮破坏文本节点定位），只保留当前高亮
+    const needle = $("find-input").value;
+    const hits = collectPreviewMatches(needle);
+    if (hits.length) {
+      highlightPreviewMatch(hits[find_state.current % hits.length]);
+    }
+  } else {
+    selectMatch(find_state.current);
+  }
 }
 
 function replaceCurrent() {
