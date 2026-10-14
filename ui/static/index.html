@@ -55,8 +55,20 @@
   <div id="sidebar-resizer" title="拖动调节导航栏宽度；双击恢复默认；Ctrl+B 隐藏/显示"></div>
   <div id="content">
     <div id="tabbar" title="Ctrl+W 关闭当前标签 · Ctrl+Tab 切换标签 · 中键点击关闭"></div>
+    <div id="findbar" hidden>
+      <input id="find-input" type="text" placeholder="查找（Enter 下一个 · Shift+Enter 上一个）">
+      <span id="find-count">0/0</span>
+      <button id="btn-find-prev" title="上一个（Shift+Enter）">↑</button>
+      <button id="btn-find-next" title="下一个（Enter）">↓</button>
+      <label class="find-option"><input type="checkbox" id="find-case"> 区分大小写</label>
+      <span class="find-sep"></span>
+      <input id="replace-input" type="text" placeholder="替换为">
+      <button id="btn-replace" title="替换当前匹配">替换</button>
+      <button id="btn-replace-all" title="替换全部匹配">全部替换</button>
+      <button id="btn-find-close" title="关闭（Esc）">×</button>
+    </div>
     <div id="preview" class="markdown-body">
-      <p class="preview-placeholder">把 .md 文件拖进窗口，或点击顶部按钮打开。<br>Ctrl+O 打开文件 · Ctrl+B 隐藏/显示导航栏 · 支持多标签。</p>
+      <p class="preview-placeholder">把 .md 文件拖进窗口，或点击顶部按钮打开。<br>Ctrl+O 打开文件 · Ctrl+B 隐藏/显示导航栏 · Ctrl+F 查找 · 支持多标签。</p>
     </div>
     <div id="editor-wrap" hidden>
       <div id="editor-gutter">1</div>

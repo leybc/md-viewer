@@ -77,6 +77,7 @@ async function init() {
   bindToolbar();
   bindKeyboard();
   bindEditor();
+  bindFindbar();
   initSidebarResizer();
   // 供 Python 侧调用（拖拽 / 单实例 IPC 转发）
   window.app = {
@@ -236,6 +237,14 @@ function bindKeyboard() {
     if ((event.ctrlKey || event.metaKey) && key === "n") {
       event.preventDefault();
       newFile();
+    }
+    if ((event.ctrlKey || event.metaKey) && key === "f" && state.mode === "edit") {
+      event.preventDefault();
+      openFind(false);
+    }
+    if ((event.ctrlKey || event.metaKey) && key === "h" && state.mode === "edit") {
+      event.preventDefault();
+      openFind(true);
     }
     if ((event.ctrlKey || event.metaKey) && key === "w") {
       event.preventDefault();
@@ -585,6 +594,147 @@ async function openFolderIfInside(dir) {
         : result.file_count + " 个文件";
     }
   }
+}
+
+/* ---------- 查找替换（编辑模式，Notepad++ 风格） ---------- */
+const find_state = { matches: [], current: -1 };
+
+function openFind(withReplace) {
+  const bar = $("findbar");
+  bar.hidden = false;
+  $("replace-input").hidden = !withReplace;
+  $("btn-replace").hidden = !withReplace;
+  $("btn-replace-all").hidden = !withReplace;
+  // 预填编辑器中的选区文本，方便直接查找
+  const editor = $("editor");
+  const selected = editor.value.slice(editor.selectionStart, editor.selectionEnd);
+  if (selected && selected.length < 200 && !selected.includes("\n")) {
+    $("find-input").value = selected;
+  }
+  $("find-input").focus();
+  $("find-input").select();
+  runFind();
+}
+
+function closeFind() {
+  $("findbar").hidden = true;
+  $("editor").focus();
+}
+
+function findCaseSensitive() {
+  return $("find-case").checked;
+}
+
+/* 计算全部匹配位置（每次输入/开关变化后重算） */
+function runFind() {
+  const editor = $("editor");
+  const needle = $("find-input").value;
+  find_state.matches = [];
+  find_state.current = -1;
+  if (needle) {
+    const haystack = findCaseSensitive() ? editor.value : editor.value.toLowerCase();
+    const target = findCaseSensitive() ? needle : needle.toLowerCase();
+    let pos = haystack.indexOf(target);
+    while (pos !== -1) {
+      find_state.matches.push([pos, pos + target.length]);
+      pos = haystack.indexOf(target, pos + target.length);
+    }
+  }
+  updateFindCount();
+  if (find_state.matches.length) {
+    // 从当前光标位置起找第一个不小于它的匹配
+    const pos = editor.selectionStart;
+    find_state.current = find_state.matches.findIndex(([s]) => s >= pos);
+    if (find_state.current === -1) find_state.current = 0;
+    selectMatch(find_state.current);
+  }
+}
+
+function updateFindCount() {
+  const el = $("find-count");
+  const total = find_state.matches.length;
+  if (total === 0) {
+    const needle = $("find-input").value;
+    el.textContent = needle ? "无结果" : "0/0";
+    el.className = needle ? "no-match" : "";
+    return;
+  }
+  el.className = "";
+  el.textContent = find_state.current + 1 + "/" + total;
+}
+
+function selectMatch(index) {
+  const editor = $("editor");
+  const [s, e] = find_state.matches[index];
+  editor.focus();
+  editor.setSelectionRange(s, e);
+  // 滚动到匹配可见位置：利用 textarea 的滚动随选区（浏览器自动）+ 行号栏同步
+  updateGutter();
+}
+
+function findNext(backward) {
+  if (!find_state.matches.length) {
+    runFind();
+    if (!find_state.matches.length) return;
+  }
+  const total = find_state.matches.length;
+  find_state.current = (find_state.current + (backward ? -1 : 1) + total) % total;
+  updateFindCount();
+  selectMatch(find_state.current);
+}
+
+function replaceCurrent() {
+  const editor = $("editor");
+  if (!find_state.matches.length) return;
+  if (find_state.current < 0) find_state.current = 0;
+  const [s, e] = find_state.matches[find_state.current];
+  editor.setRangeText($("replace-input").value, s, e, "end");
+  // 触发脏标记与渲染刷新
+  storeEditingState();
+  renderTabs();
+  updateGutter();
+  runFind();
+}
+
+function replaceAllMatches() {
+  const editor = $("editor");
+  const needle = $("find-input").value;
+  if (!needle || !find_state.matches.length) return;
+  const replacement = $("replace-input").value;
+  // 从后往前替换避免位置失效
+  for (let i = find_state.matches.length - 1; i >= 0; i--) {
+    const [s, e] = find_state.matches[i];
+    editor.setRangeText(replacement, s, e, "end");
+  }
+  storeEditingState();
+  renderTabs();
+  updateGutter();
+  runFind();
+  setStatus("已替换 " + find_state.matches.length + " 处（替换后剩余）");
+}
+
+function bindFindbar() {
+  $("find-input").addEventListener("input", runFind);
+  $("find-input").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      findNext(event.shiftKey);
+    }
+    if (event.key === "Escape") closeFind();
+  });
+  $("replace-input").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      replaceCurrent();
+    }
+    if (event.key === "Escape") closeFind();
+  });
+  $("find-case").addEventListener("change", runFind);
+  $("btn-find-next").addEventListener("click", () => findNext(false));
+  $("btn-find-prev").addEventListener("click", () => findNext(true));
+  $("btn-replace").addEventListener("click", replaceCurrent);
+  $("btn-replace-all").addEventListener("click", replaceAllMatches);
+  $("btn-find-close").addEventListener("click", closeFind);
 }
 
 /* ---------- 文件树 ---------- */
