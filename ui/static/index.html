@@ -34,6 +34,9 @@
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
     </button>
   </div>
+  <button id="btn-code" class="icon-btn" disabled title="插入代码块（Ctrl+K，选择语言后插入围栏模板）">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></svg>
+  </button>
   <span class="sep"></span>
   <button id="btn-save" class="icon-btn" disabled title="保存当前文件（Ctrl+S）">
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
@@ -67,6 +70,8 @@
       <button id="btn-replace-all" title="替换全部匹配">全部替换</button>
       <button id="btn-find-close" title="关闭（Esc）">×</button>
     </div>
+    <!-- 语言选择菜单：插入代码块时弹出（相对按钮定位） -->
+    <div id="lang-menu" hidden></div>
     <div id="preview" class="markdown-body">
       <p class="preview-placeholder">把 .md 文件拖进窗口，或点击顶部按钮打开。<br>Ctrl+O 打开文件 · Ctrl+B 隐藏/显示导航栏 · Ctrl+F 查找 · 支持多标签。</p>
     </div>

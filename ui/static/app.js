@@ -213,6 +213,7 @@ function bindToolbar() {
   });
 
   $("btn-sidebar").addEventListener("click", toggleSidebar);
+  $("btn-code").addEventListener("click", toggleLangMenu);
   $("btn-mode-preview").addEventListener("click", () => switchMode("preview"));
   $("btn-mode-edit").addEventListener("click", () => switchMode("edit"));
   $("btn-save").addEventListener("click", saveCurrent);
@@ -245,6 +246,10 @@ function bindKeyboard() {
     if ((event.ctrlKey || event.metaKey) && key === "h" && state.mode === "edit") {
       event.preventDefault();
       openFind(true);
+    }
+    if ((event.ctrlKey || event.metaKey) && key === "k" && state.mode === "edit") {
+      event.preventDefault();
+      toggleLangMenu();
     }
     if ((event.ctrlKey || event.metaKey) && key === "w") {
       event.preventDefault();
@@ -352,6 +357,7 @@ function activateTag(index) {
   updateGutter();
   $("btn-save").disabled = false;
   $("btn-export").disabled = false;
+  $("btn-code").disabled = false;
   renderTabs();
   markTreeActive(tag.path);
   renderPreview(tag.content, dirOf(tag.path));
@@ -373,6 +379,7 @@ function closeTag(index) {
     $("preview").innerHTML = PREVIEW_PLACEHOLDER;
     $("btn-save").disabled = true;
     $("btn-export").disabled = true;
+    $("btn-code").disabled = true;
     renderTabs();
     markTreeActive("");
     setStatus("已关闭全部标签");
@@ -625,6 +632,66 @@ async function openFolderIfInside(dir) {
         : result.file_count + " 个文件";
     }
   }
+}
+
+/* ---------- 插入代码块（语言选择菜单） ---------- */
+const CODE_LANGUAGES = [
+  "python", "c", "cpp", "csharp", "java", "javascript", "typescript",
+  "go", "rust", "php", "ruby", "swift", "kotlin", "dart", "lua",
+  "sql", "bash", "powershell", "html", "css", "json", "yaml", "xml",
+  "markdown", "mermaid", "",
+];
+
+function buildLangMenu() {
+  const menu = $("lang-menu");
+  menu.innerHTML = "";
+  for (const lang of CODE_LANGUAGES) {
+    const item = document.createElement("div");
+    item.className = "lang-item";
+    item.textContent = lang || "（无语言标注）";
+    item.addEventListener("click", () => {
+      insertCodeFence(lang);
+      menu.hidden = true;
+    });
+    menu.appendChild(item);
+  }
+}
+
+function toggleLangMenu() {
+  const menu = $("lang-menu");
+  if (!menu.hidden) {
+    menu.hidden = true;
+    return;
+  }
+  buildLangMenu();
+  const btn = $("btn-code");
+  const rect = btn.getBoundingClientRect();
+  menu.style.left = rect.left + "px";
+  menu.style.top = rect.bottom + 6 + "px";
+  menu.hidden = false;
+}
+
+/* 在光标处插入 ```围栏模板：选中文本放入围栏内；无选区时插入空模板并光标定位到代码首行 */
+function insertCodeFence(lang) {
+  const editor = $("editor");
+  if (state.mode !== "edit") switchMode("edit");
+  const start = editor.selectionStart;
+  const end = editor.selectionEnd;
+  const value = editor.value;
+  const selected = value.slice(start, end);
+  const fence = "```" + lang + "\n" + (selected || "") + "\n```\n";
+  // 行首对齐：光标不在行首时先补一个换行
+  const at_line_start = start === 0 || value[start - 1] === "\n";
+  const prefix = at_line_start ? "" : "\n";
+  editor.setRangeText(prefix + fence, start, end, "end");
+  if (!selected) {
+    // 光标放到代码首行，方便直接开始输入
+    const code_start = start + prefix.length + 3 + lang.length + 1;
+    editor.setSelectionRange(code_start, code_start);
+  }
+  storeEditingState();
+  updateGutter();
+  editor.focus();
 }
 
 /* ---------- 查找替换（编辑/预览双模式，Notepad++ 风格） ----------
